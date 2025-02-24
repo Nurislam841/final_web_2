@@ -310,6 +310,34 @@ app.get('/api/weather', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch weather data' });
     }
 });
+app.get('/api/news', async (req, res) => {
+    const { city } = req.query;
+
+    if (!city) {
+        return res.status(400).json({ error: 'City is required' });
+    }
+
+    try {
+        const geoResponse = await axios.get(
+            `http://api.openweathermap.org/geo/1.0/direct?q=${city}&appid=${OPENWEATHER_API_KEY}`
+        );
+
+        if (!geoResponse.data.length) {
+            return res.status(404).json({ error: 'City not found' });
+        }
+
+        const { country } = geoResponse.data[0];
+
+        const newsResponse = await axios.get(
+            `https://newsapi.org/v2/everything?q=${city}&apiKey=${NEWS_API_KEY}`
+        );
+
+        res.json(newsResponse.data.articles.slice(0, 5)); // Return top 5 articles
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch news' });
+    }
+});
 
 app.get('/api/weather/forecast', async (req, res) => {
     const { city } = req.query;
@@ -337,6 +365,7 @@ app.get('/api/weather/forecast', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch weather forecast' });
     }
 });
+
 app.get('/api/air-quality', async (req, res) => {
     const { city } = req.query;
     if (!city) return res.status(400).json({ error: 'City is required' });
@@ -379,33 +408,6 @@ function getAirQualityMessage(aqi) {
     ];
     return messages[aqi] || messages[0];
 }
-
-app.get('/api/news', async (req, res) => {
-    const { city } = req.query;
-    if (!city) return res.status(400).json({ error: 'City is required' });
-
-    try {
-        const response = await axios.get(
-            `https://newsapi.org/v2/everything?q=${city}&apiKey=${NEWS_API_KEY}`
-        );
-
-        if (!response.data.articles.length) {
-            return res.json({ message: `No news available for ${city}.` });
-        }
-
-        const news = response.data.articles.slice(0, 5).map(article => ({
-            title: article.title,
-            description: article.description,
-            url: article.url,
-            source: article.source.name
-        }));
-
-        res.json({ city, news });
-    } catch (error) {
-        console.error('News API Error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch news data' });
-    }
-});
 
 app.get('/blog', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/blog.html'));
